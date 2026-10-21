@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App Monitor Dashboard</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-strong: #1f2937;
+        --primary: #60a5fa;
+        --success: #34d399;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --danger: #f87171;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #020817, #111827);
+        color: var(--text);
+        padding: 24px;
+      }
+
+      h1 {
+        margin: 0 0 20px;
+        font-size: 30px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .card {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .value {
+        font-size: 28px;
+        font-weight: bold;
+      }
+
+      .logs {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .log-item {
+        background: rgba(31, 41, 55, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+
+      .time {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      .package-name {
+        color: var(--primary);
+        font-weight: bold;
+      }
+
+      .badge {
+        display: inline-block;
+        background: rgba(52, 211, 153, 0.15);
+        color: var(--success);
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 11px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Realtime App Monitor</h1>
+
+    <div class="stats">
+      <div class="card">
+        <div class="label">Total Log</div>
+        <div id="totalLog" class="value">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Device</div>
+        <div id="deviceName" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Terakhir</div>
+        <div id="lastUpdate" class="value">-</div>
+      </div>
+    </div>
+
+    <div id="logs" class="logs"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const logsContainer = document.getElementById('logs');
+      const totalLog = document.getElementById('totalLog');
+      const deviceName = document.getElementById('deviceName');
+      const lastUpdate = document.getElementById('lastUpdate');
+
+      let logs = [];
+
+      function renderLogs() {
+        totalLog.textContent = String(logs.length);
+        if (logs.length > 0) {
+          const latest = logs[0];
+          deviceName.textContent = latest.device || 'unknown';
+          lastUpdate.textContent = latest.receivedAt || '-';
+        }
+
+        logsContainer.innerHTML = logs
+          .slice(0, 30)
+          .map((log) => {
+            const packageName = log.packageName || 'unknown';
+            const device = log.device || 'unknown';
+            const event = log.event || 'heartbeat';
+            const receivedAt = log.receivedAt || '-';
+
+            return `
+              <div class="log-item">
+                <div class="time">${receivedAt}</div>
+                <div><span class="package-name">${packageName}</span></div>
+                <div>Event: ${event}</div>
+                <div>Device: ${device}</div>
+                <div class="badge">live</div>
+              </div>
+            `;
+          })
+          .join('');
+      }
+
+      const socket = io();
+
+      socket.on('history', (history) => {
+        logs = history.slice().reverse();
+        renderLogs();
+      });
+
+      socket.on('new-log', (log) => {
+        logs.unshift(log);
+        logs = logs.slice(0, 200);
+        renderLogs();
+      });
+    </script>
+  </body>
+</html>

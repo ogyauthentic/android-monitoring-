@@ -1,0 +1,17 @@
+# Gradle files
+**/build/
+.gradle/
+.idea/
+*.iml
+
+# Android build artifacts
+*.apk
+*.aar
+*.aab
+
+# Local environment
+local.properties
+
+# OS cache
+.DS_Store
+Thumbs.db
