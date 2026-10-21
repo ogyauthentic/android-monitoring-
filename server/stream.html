@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Screen</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    img {
+      width: 100%;
+      max-width: 900px;
+      border: 2px solid #333;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+  <img id="screen" alt="Live Screen" />
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    socket.on('screen-frame', (data) => {
+      const img = document.getElementById('screen');
+      if (data && data.image) {
+        img.src = `data:image/jpeg;base64,${data.image}`;
+      }
+    });
+  </script>
+</body>
+</html>
