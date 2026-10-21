@@ -1,6 +1,6 @@
 # android-monitoring-
 
-Monitoring aplikasi Android yang berjalan di background dan mengirim log ke laptop/PC melalui server real-time.
+Monitoring aplikasi Android yang berjalan di background dan mengirim log serta screenshot ke server real-time.
 
 ## Fitur utama
 
@@ -10,7 +10,8 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 - monitoring app usage
 - realtime dashboard di browser
 - log dikirim ke server Node.js
-- support beda jaringan via ngrok, VPS, Docker, atau Cloudflare
+- screenshot dapat dikirim ke server melalui endpoint upload
+- bisa digunakan lewat ngrok, VPS, Docker, atau Cloudflare
 
 ## Struktur proyek
 
@@ -28,7 +29,8 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 │   ├── index.html
 │   ├── logs.json
 │   ├── package.json
-│   └── server.js
+│   ├── server.js
+│   └── uploads/
 ├── android/
 │   ├── build.gradle
 │   ├── gradle.properties
@@ -59,9 +61,9 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 ### Untuk deployment produksi
 
 - VPS atau server Linux
-- Docker + Docker Compose (opsional tapi direkomendasikan)
-- Nginx (opsional, kalau tidak pakai Docker Compose)
-- Cloudflare (opsional, untuk domain publik)
+- Docker + Docker Compose
+- Nginx (opsional)
+- Cloudflare (opsional)
 
 ## Menjalankan server di laptop/PC
 
@@ -85,6 +87,8 @@ Server menyediakan endpoint berikut:
 - `/health` -> health check
 - `/api/logs` -> daftar log
 - `/api/log` -> endpoint upload log dari Android
+- `/api/screenshot` -> upload screenshot dari Android
+- `/uploads/<file>.png` -> akses screenshot yang sudah disimpan
 
 ## Menjalankan dengan Docker Compose
 
@@ -196,6 +200,40 @@ sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d monitoring.example.com
 ```
 
+## Screenshot upload dari Android
+
+Android dapat mengirim screenshot ke server melalui endpoint berikut:
+
+```text
+POST /api/screenshot
+```
+
+### Contoh request dengan curl
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer token-rahasia-anda" \
+  -F "file=@/path/to/test.png" \
+  http://localhost:3000/api/screenshot
+```
+
+### Contoh response
+
+```json
+{
+  "ok": true,
+  "message": "screenshot uploaded",
+  "fileUrl": "/uploads/1712345678901-abcd.png",
+  "url": "http://localhost:3000/uploads/1712345678901-abcd.png"
+}
+```
+
+### Akses screenshot dari browser
+
+```text
+http://localhost:3000/uploads/<nama-file>.png
+```
+
 ## Variabel environment
 
 File `.env` mendukung:
@@ -212,16 +250,15 @@ API_TOKEN=token-rahasia-anda
 Di aplikasi Android, ubah URL server ke domain atau IP publik Anda, contoh:
 
 ```kotlin
-private val serverUrl = "https://monitoring.example.com/api/log"
+private val screenshotUrl = "https://monitoring.example.com/api/screenshot"
+private val authToken = "token-rahasia-anda"
 ```
 
-Jika memakai token:
+Contoh header:
 
 ```kotlin
-val authHeader = "Bearer ${API_TOKEN}"
+.header("Authorization", "Bearer $authToken")
 ```
-
-Pastikan token pada Android sama dengan `API_TOKEN` yang diset di server.
 
 ## Akses dari Android beda jaringan
 
@@ -242,6 +279,7 @@ Untuk produksi, disarankan:
 - gunakan domain publik yang aman
 - batasi akses ke port server dari firewall
 - jangan simpan token di source control umum
+- batasi ukuran upload gambar (sudah dibatasi 10 MB pada server)
 
 ## Catatan penting
 
@@ -250,6 +288,9 @@ Aplikasi Android modern bisa membatasi background task dan auto-start. Jadi ini 
 - monitoring internal
 - penggunaan di jaringan lokal
 - perangkat yang dikelola dengan izin khusus
+- screenshot manual / event-triggered bukan screenshot layar penuh otomatis
+
+Untuk screenshot full-screen otomatis di background, diperlukan teknologi tambahan seperti `MediaProjection` API, dan itu tidak cocok untuk setup paling sederhana.
 
 ## Troubleshooting
 
@@ -310,9 +351,18 @@ docker compose up --build -d
 curl http://localhost/health
 ```
 
+### Upload screenshot manual
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer token-rahasia-anda" \
+  -F "file=@/path/to/test.png" \
+  http://localhost:3000/api/screenshot
+```
+
 ## Credit
 
-Project ini dibuat untuk monitoring aplikasi Android yang berjalan di background dan mengirim log secara real-time.
+Project ini dibuat untuk monitoring aplikasi Android yang berjalan di background dan mengirim log serta screenshot secara real-time.
 
 ---
 
