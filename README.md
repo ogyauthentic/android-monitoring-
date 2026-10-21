@@ -1,6 +1,16 @@
-# App Monitor Project
+# android-monitoring-
 
-Monitoring aplikasi Android yang berjalan di background dan mengirim log ke laptop melalui server real-time.
+Monitoring aplikasi Android yang berjalan di background dan mengirim log ke laptop/PC melalui server real-time.
+
+## Fitur utama
+
+- foreground service Android
+- auto-start setelah boot
+- aplikasi tidak menampilkan launcher icon
+- monitoring app usage
+- realtime dashboard di browser
+- log dikirim ke server Node.js
+- support beda jaringan via ngrok/VPS
 
 ## Struktur proyek
 
@@ -9,121 +19,101 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 ├── README.md
 ├── .gitignore
 ├── server/
-│   ├── package.json
-│   ├── server.js
+│   ├── .env.example
 │   ├── index.html
 │   ├── logs.json
-│   └── .env.example
-└── android/
-    ├── settings.gradle
-    ├── build.gradle
-    ├── gradle.properties
-    └── app/
-        ├── build.gradle
-        ├── proguard-rules.pro
-        └── src/main/
-            ├── AndroidManifest.xml
-            ├── java/com/example/appmonitor/
-            │   ├── MainActivity.kt
-            │   └── AppMonitorService.kt
-            └── res/
-                ├── layout/activity_main.xml
-                ├── values/colors.xml
-                ├── values/strings.xml
-                └── values/themes.xml
+│   ├── package.json
+│   └── server.js
+├── android/
+│   ├── build.gradle
+│   ├── gradle.properties
+│   ├── settings.gradle
+│   └── app/
+│       ├── build.gradle
+│       ├── proguard-rules.pro
+│       └── src/main/
+│           ├── AndroidManifest.xml
+│           ├── java/com/example/appmonitor/
+│           │   ├── AppMonitorService.kt
+│           │   ├── BootReceiver.kt
+│           │   └── MainActivity.kt
+│           └── res/
+│               ├── layout/activity_main.xml
+│               ├── values/colors.xml
+│               ├── values/strings.xml
+│               └── values/themes.xml
 ```
 
-## Arsitektur
+## Cara jalankan server di laptop
 
-- Android: `ForegroundService` berjalan di background.
-- Service mengambil aplikasi yang sedang aktif menggunakan `UsageStatsManager`.
-- Log dikirim ke server Node.js melalui HTTP POST.
-- Server menampilkan log secara real-time di browser menggunakan Socket.IO.
-- Laptop dapat menerima log meski Android dan laptop beda jaringan dengan `ngrok` atau VPS.
-
-## Cara menjalankan server di laptop
+1. Masuk ke folder `server`
+2. Jalankan:
 
 ```bash
-cd server
 npm install
 node server.js
 ```
 
-Lalu buka browser ke:
+3. Buka browser:
 
 ```text
 http://localhost:3000
 ```
 
-## Agar Android dapat terhubung dari luar jaringan lokal
+## Cara akses dari Android beda jaringan
 
-Jalankan tunnel:
+Gunakan ngrok:
 
 ```bash
 ngrok http 3000
 ```
 
-Salin URL dari ngrok, misalnya:
+Ambil URL seperti:
 
 ```text
-https://abcd-12-34-56-78.ngrok-free.app
+https://abcd-1234.ngrok-free.app
 ```
 
-Setelah itu, paste ke file `android/app/src/main/java/com/example/appmonitor/AppMonitorService.kt` pada variabel:
+Update file:
 
 ```kotlin
 private val serverUrl = "https://YOUR_NGROK_URL/api/log"
 ```
 
-## Menjalankan Android App
+di `android/app/src/main/java/com/example/appmonitor/AppMonitorService.kt`.
 
-1. Buka folder `android` di Android Studio.
-2. Sync project.
-3. Hubungkan device Android.
-4. Jalankan aplikasi.
-5. Pastikan izinkan `Usage Access`:
-   - Settings > Apps > Special app access > Usage access
-   - aktifkan untuk aplikasi Anda
-6. Aplikasi akan berjalan di background dan mengirim log.
+## Fitur hidden app
 
-## Log yang dikirim
+Aplikasi tidak menampilkan ikon launcher, tetapi tetap menjalankan service di background. Auto-start setelah boot juga sudah diaktifkan melalui `BootReceiver`.
 
-Contoh payload:
+Catatan penting: Android modern tetap bisa menampilkan aplikasi di Settings > Apps / App info, jadi yang bisa dicapai adalah “tidak tampil di launcher”, bukan 100% sepenuhnya tersembunyi.
 
-```json
-{
-  "event": "foreground_app",
-  "packageName": "com.instagram.android",
-  "device": "Pixel 8",
-  "timestamp": 1720000000000
-}
-```
+## Izin yang diperlukan di Android
+
+User harus aktifkan:
+
+- Settings > Apps > Special app access > Usage access
+- Battery optimization di non-restrict
+
+## Build APK
+
+1. Buka folder `android` di Android Studio
+2. Sync Gradle
+3. Pilih Build > Build APK
+4. Install file APK ke perangkat user
 
 ## Catatan keamanan
 
-Gunakan `Authorization` header untuk validasi API jika Anda deploy ke server publik. Contoh:
+Untuk produksi, gunakan HTTPS dan token API:
 
-```kotlin
-.addHeader("Authorization", "Bearer your-secret-token")
-```
+- server Node.js sudah mendukung Authorization header
+- ganti `apiToken` di `AppMonitorService.kt`
+- di server, aktifkan variabel `API_TOKEN` pada `server.js` atau `.env`
 
-Di server Node.js kita sudah menyediakan `Authorization` validation optional. Silakan sesuaikan jika diperlukan.
+## Penting
 
-## Fitur yang sudah termasuk
+Untuk penggunaan realistis, semua perangkat Android modern biasanya membatasi auto-start dan background task. Jadi, aplikasi ini paling cocok untuk:
 
-- Real-time monitoring lewat browser
-- background service Android
-- log aplikasi aktif
-- koneksi antar jaringan lewat ngrok
-- penyimpanan log ke file JSON
-- server live dashboard
-
-## Cek status server
-
-```bash
-curl http://localhost:3000/health
-```
-
-## Lisensi
-
-Project ini dibuat untuk kebutuhan monitoring/logging aplikasi Android di laptop. Silakan sesuaikan sesuai kebutuhan proyek Anda.
+- monitoring internal
+- alat pengawasan pribadi di jaringan lokal
+- penggunaan di perangkat yang dikelola dengan izin khusus

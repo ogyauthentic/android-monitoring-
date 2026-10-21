@@ -12,5 +12,6 @@ class MainActivity : AppCompatActivity() {
 
         val serviceIntent = Intent(this, AppMonitorService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
+        finish()
     }
 }

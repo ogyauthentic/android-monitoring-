@@ -30,6 +30,7 @@ class AppMonitorService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val pollingIntervalMs = 10_000L
     private val serverUrl = "https://YOUR_NGROK_URL/api/log"
+    private val apiToken = "YOUR_API_TOKEN"
 
     private val pollRunnable = object : Runnable {
         override fun run() {
@@ -42,7 +43,7 @@ class AppMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(1, createNotification())
+        startForeground(1, buildNotification())
         handler.post(pollRunnable)
     }
 
@@ -81,16 +82,7 @@ class AppMonitorService : Service() {
             .filter { it.lastTimeUsed > 0 }
             .maxByOrNull { it.lastTimeUsed }
 
-        if (foregroundApp == null) {
-            return JSONObject().apply {
-                put("event", "no_usage_data")
-                put("packageName", "unknown")
-                put("device", Build.MODEL)
-                put("timestamp", System.currentTimeMillis())
-            }
-        }
-
-        val packageName = foregroundApp.packageName ?: "unknown"
+        val packageName = foregroundApp?.packageName ?: "unknown"
 
         return JSONObject().apply {
             put("event", "foreground_app")
@@ -101,17 +93,22 @@ class AppMonitorService : Service() {
     }
 
     private fun sendToServer(payload: JSONObject) {
-        if (serverUrl.contains("YOUR_NGROK_URL")) {
-            Log.w("AppMonitorService", "Ganti URL server di AppMonitorService.kt sebelum dijalankan.")
+        if (serverUrl.contains("YOUR_NGROK_URL") || serverUrl.contains("YOUR_API_TOKEN")) {
+            Log.w("AppMonitorService", "Ganti server URL dan token API sebelum build produksi.")
             return
         }
 
         val requestBody = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
 
-        val request = Request.Builder()
+        val requestBuilder = Request.Builder()
             .url(serverUrl)
             .post(requestBody)
-            .build()
+
+        if (apiToken.isNotBlank() && apiToken != "YOUR_API_TOKEN") {
+            requestBuilder.addHeader("Authorization", "Bearer $apiToken")
+        }
+
+        val request = requestBuilder.build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -138,10 +135,10 @@ class AppMonitorService : Service() {
         }
     }
 
-    private fun createNotification(): Notification {
+    private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, "app_monitor_channel")
             .setContentTitle("App Monitor")
-            .setContentText("Memantau aplikasi yang aktif")
+            .setContentText("Monitoring aktif di background")
             .setSmallIcon(android.R.drawable.stat_sys_data_saver)
             .build()
     }
