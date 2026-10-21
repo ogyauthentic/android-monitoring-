@@ -18,7 +18,7 @@
         tools:targetApi="34">
 
         <service
-            android:name=".AppMonitorService"
+            android:name=".ScreenStreamService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
@@ -40,6 +40,11 @@
             android:name=".MainActivity"
             android:enabled="true"
             android:excludeFromRecents="true"
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

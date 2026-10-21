@@ -7,14 +7,10 @@ import androidx.core.content.ContextCompat
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action ?: return
-
-        if (action == Intent.ACTION_BOOT_COMPLETED ||
-            action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
-            action == "android.intent.action.QUICKBOOT_POWERON" ||
-            action == Intent.ACTION_PACKAGE_REPLACED
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED
         ) {
-            val serviceIntent = Intent(context, AppMonitorService::class.java)
+            val serviceIntent = Intent(context, ScreenStreamService::class.java)
             ContextCompat.startForegroundService(context, serviceIntent)
         }
     }
