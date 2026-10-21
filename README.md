@@ -10,7 +10,7 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 - monitoring app usage
 - realtime dashboard di browser
 - log dikirim ke server Node.js
-- support beda jaringan via ngrok/VPS
+- support beda jaringan via ngrok, VPS, Docker, atau Cloudflare
 
 ## Struktur proyek
 
@@ -18,6 +18,11 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 .
 ├── README.md
 ├── .gitignore
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+├── nginx/
+│   └── default.conf
 ├── server/
 │   ├── .env.example
 │   ├── index.html
@@ -44,76 +49,271 @@ Monitoring aplikasi Android yang berjalan di background dan mengirim log ke lapt
 │               └── values/themes.xml
 ```
 
-## Cara jalankan server di laptop
+## Persyaratan
 
-1. Masuk ke folder `server`
-2. Jalankan:
+### Untuk menjalankan server lokal
+
+- Node.js 18+
+- npm
+
+### Untuk deployment produksi
+
+- VPS atau server Linux
+- Docker + Docker Compose (opsional tapi direkomendasikan)
+- Nginx (opsional, kalau tidak pakai Docker Compose)
+- Cloudflare (opsional, untuk domain publik)
+
+## Menjalankan server di laptop/PC
+
+Masuk ke folder `server` lalu jalankan:
 
 ```bash
+cd server
 npm install
 node server.js
 ```
 
-3. Buka browser:
+Setelah server hidup, buka browser:
 
 ```text
 http://localhost:3000
 ```
 
-## Cara akses dari Android beda jaringan
+Server menyediakan endpoint berikut:
 
-Gunakan ngrok:
+- `/` -> dashboard HTML
+- `/health` -> health check
+- `/api/logs` -> daftar log
+- `/api/log` -> endpoint upload log dari Android
+
+## Menjalankan dengan Docker Compose
+
+### 1. Copy file environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` sesuai environment Anda:
+
+```env
+PORT=3000
+API_TOKEN=token-rahasia-anda
+```
+
+### 2. Jalankan container
+
+```bash
+docker compose up --build -d
+```
+
+### 3. Cek status container
+
+```bash
+docker compose ps
+```
+
+### 4. Cek health check
+
+```bash
+curl http://localhost/health
+```
+
+Kalau berhasil, outputnya seperti:
+
+```json
+{"ok":true,"status":"server-running"}
+```
+
+## Deployment di VPS dengan Nginx + Cloudflare
+
+### 1. Clone repo
+
+```bash
+git clone https://github.com/ogyauthentic/android-monitoring-.git
+cd android-monitoring-
+```
+
+### 2. Jalankan app dengan Docker
+
+```bash
+docker compose up --build -d
+```
+
+### 3. Konfigurasi Nginx reverse proxy
+
+Buat file `/etc/nginx/conf.d/android-monitoring.conf`:
+
+```nginx
+server {
+    listen 80;
+    server_name monitoring.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+Lalu cek dan reload:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 4. Konfigurasi domain di Cloudflare
+
+Di Cloudflare:
+
+- Tambahkan DNS record `A` untuk `monitoring.example.com`
+- Arahkan ke IP VPS Anda
+- Aktifkan proxy (orange cloud)
+
+Setelah itu, akses:
+
+```text
+https://monitoring.example.com
+```
+
+### 5. HTTPS via LetsEncrypt (opsional)
+
+Untuk Nginx langsung menangani SSL:
+
+```bash
+sudo apt update
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d monitoring.example.com
+```
+
+## Variabel environment
+
+File `.env` mendukung:
+
+```env
+PORT=3000
+API_TOKEN=token-rahasia-anda
+```
+
+`API_TOKEN` dipakai agar request dari Android hanya bisa diterima jika Authorization header sesuai.
+
+## Pengaturan Android
+
+Di aplikasi Android, ubah URL server ke domain atau IP publik Anda, contoh:
+
+```kotlin
+private val serverUrl = "https://monitoring.example.com/api/log"
+```
+
+Jika memakai token:
+
+```kotlin
+val authHeader = "Bearer ${API_TOKEN}"
+```
+
+Pastikan token pada Android sama dengan `API_TOKEN` yang diset di server.
+
+## Akses dari Android beda jaringan
+
+Gunakan ngrok atau VPS publik:
 
 ```bash
 ngrok http 3000
 ```
 
-Ambil URL seperti:
+Lalu update URL server dari Android menjadi URL ngrok yang diberikan.
 
-```text
-https://abcd-1234.ngrok-free.app
-```
+## Keamanan produksi
 
-Update file:
+Untuk produksi, disarankan:
 
-```kotlin
-private val serverUrl = "https://YOUR_NGROK_URL/api/log"
-```
+- pakai HTTPS
+- pakai token API
+- gunakan domain publik yang aman
+- batasi akses ke port server dari firewall
+- jangan simpan token di source control umum
 
-di `android/app/src/main/java/com/example/appmonitor/AppMonitorService.kt`.
+## Catatan penting
 
-## Fitur hidden app
-
-Aplikasi tidak menampilkan ikon launcher, tetapi tetap menjalankan service di background. Auto-start setelah boot juga sudah diaktifkan melalui `BootReceiver`.
-
-Catatan penting: Android modern tetap bisa menampilkan aplikasi di Settings > Apps / App info, jadi yang bisa dicapai adalah “tidak tampil di launcher”, bukan 100% sepenuhnya tersembunyi.
-
-## Izin yang diperlukan di Android
-
-User harus aktifkan:
-
-- Settings > Apps > Special app access > Usage access
-- Battery optimization di non-restrict
-
-## Build APK
-
-1. Buka folder `android` di Android Studio
-2. Sync Gradle
-3. Pilih Build > Build APK
-4. Install file APK ke perangkat user
-
-## Catatan keamanan
-
-Untuk produksi, gunakan HTTPS dan token API:
-
-- server Node.js sudah mendukung Authorization header
-- ganti `apiToken` di `AppMonitorService.kt`
-- di server, aktifkan variabel `API_TOKEN` pada `server.js` atau `.env`
-
-## Penting
-
-Untuk penggunaan realistis, semua perangkat Android modern biasanya membatasi auto-start dan background task. Jadi, aplikasi ini paling cocok untuk:
+Aplikasi Android modern bisa membatasi background task dan auto-start. Jadi ini paling cocok untuk:
 
 - monitoring internal
-- alat pengawasan pribadi di jaringan lokal
-- penggunaan di perangkat yang dikelola dengan izin khusus
+- penggunaan di jaringan lokal
+- perangkat yang dikelola dengan izin khusus
+
+## Troubleshooting
+
+### Server tidak hidup
+
+```bash
+cd server
+npm install
+node server.js
+```
+
+### Port 3000 tidak bisa diakses
+
+```bash
+ss -tulpn | grep 3000
+```
+
+### Docker gagal build
+
+```bash
+docker compose build --no-cache
+```
+
+### Endpoint tidak bisa dipanggil
+
+Periksa apakah app container berjalan:
+
+```bash
+docker compose logs app
+```
+
+### Nginx error
+
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+```
+
+## Referensi cepat
+
+### Jalankan lokal
+
+```bash
+cd server
+npm install
+node server.js
+```
+
+### Jalankan dengan Docker
+
+```bash
+docker compose up --build -d
+```
+
+### Cek status
+
+```bash
+curl http://localhost/health
+```
+
+## Credit
+
+Project ini dibuat untuk monitoring aplikasi Android yang berjalan di background dan mengirim log secara real-time.
+
+---
+
+Untuk deploy ke server publik, file Docker dan Nginx yang tersedia di repo ini sudah dibuat agar bisa langsung digunakan.
