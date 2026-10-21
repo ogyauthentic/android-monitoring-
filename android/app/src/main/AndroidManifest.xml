@@ -24,13 +24,20 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <activity
-            android:name=".MainActivity"
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
-        </activity>
+        </receiver>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:excludeFromRecents="true" />
     </application>
 </manifest>
